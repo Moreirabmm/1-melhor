@@ -18,14 +18,23 @@ import {
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import confetti from 'canvas-confetti';
-
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 // Utilities
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 function generateMockHabitHistory() {
-  return Array.from({ length: 30 }).map(() => Math.random() > 0.3); // 70% chance of true
+  const history = {};
+  const today = new Date();
+  for (let i = 0; i < 90; i++) {
+    const d = subDays(today, i);
+    const dateStr = format(d, 'yyyy-MM-dd');
+    history[dateStr] = Math.random() > 0.3; // 70% chance of true
+  }
+  return history;
 }
 
 // Mock Data
@@ -116,6 +125,7 @@ export default function App() {
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  const [habitPeriod, setHabitPeriod] = useState("week"); // 'week' | 'month' | '3months'
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -306,12 +316,10 @@ export default function App() {
       newData[mode].tasks[activeTab].habits.push({ 
         id: newId, 
         title: 'Novo Hábito', 
-        history: Array.from({ length: 30 }).map(() => false) 
+        history: {} 
       });
       return newData;
     });
-    // For brevity, habits edit inline through a quick prompt, or just use the same pattern.
-    // Let's use window.prompt for simplicity on habits since they are a secondary feature for now.
     setTimeout(() => {
       const name = window.prompt("Nome do novo hábito:", "Novo Hábito");
       if (name) {
@@ -325,12 +333,12 @@ export default function App() {
     }, 50);
   };
 
-  const toggleHabitDay = (habitId, dayIndex) => {
+  const toggleHabitDay = (habitId, dateStr) => {
     setData(prev => {
       const newData = { ...prev };
       const habit = newData[mode].tasks[activeTab].habits.find(h => h.id === habitId);
       if (habit) {
-        habit.history[dayIndex] = !habit.history[dayIndex];
+        habit.history[dateStr] = !habit.history[dateStr];
       }
       return newData;
     });
@@ -343,6 +351,24 @@ export default function App() {
       const area = newData[mode].tasks[activeTab];
       area.habits = area.habits.filter(h => h.id !== habitId);
       return newData;
+    });
+  };
+
+  const getHabitChartData = (history, period) => {
+    let days = 7;
+    if (period === 'month') days = 30;
+    if (period === '3months') days = 90;
+    
+    const today = new Date();
+    const interval = eachDayOfInterval({ start: subDays(today, days - 1), end: today });
+    
+    return interval.map(date => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return {
+        name: format(date, period === 'week' ? 'EEEEEE' : 'dd/MM', { locale: ptBR }),
+        dateStr,
+        completed: history[dateStr] ? 1 : 0
+      };
     });
   };
 
@@ -627,83 +653,155 @@ export default function App() {
                   <Target className="w-6 h-6 text-brand-emerald" />
                   Métricas da Área: {currentTabs.find(t => t.id === activeTab)?.name}
                 </h2>
-                <button 
-                  onClick={handleAddHabit}
-                  className="text-sm font-sans font-semibold text-brand-emerald hover:text-brand-moss flex items-center gap-1 bg-brand-emerald/10 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Novo Hábito
-                </button>
+                
+                <div className="flex items-center gap-4">
+                  {/* Select Período */}
+                  <div className="flex items-center bg-gray-100 p-1 border-sketch">
+                    <button 
+                      onClick={() => setHabitPeriod('week')}
+                      className={cn("px-3 py-1 font-sans text-xs font-bold transition-all", habitPeriod === 'week' ? "bg-white border-2 border-black shadow-sm" : "text-gray-500 hover:text-black")}
+                    >
+                      7 Dias
+                    </button>
+                    <button 
+                      onClick={() => setHabitPeriod('month')}
+                      className={cn("px-3 py-1 font-sans text-xs font-bold transition-all", habitPeriod === 'month' ? "bg-white border-2 border-black shadow-sm" : "text-gray-500 hover:text-black")}
+                    >
+                      30 Dias
+                    </button>
+                    <button 
+                      onClick={() => setHabitPeriod('3months')}
+                      className={cn("px-3 py-1 font-sans text-xs font-bold transition-all", habitPeriod === '3months' ? "bg-white border-2 border-black shadow-sm" : "text-gray-500 hover:text-black")}
+                    >
+                      3 Meses
+                    </button>
+                  </div>
+
+                  <button 
+                    onClick={handleAddHabit}
+                    className="text-sm font-sans font-semibold text-brand-emerald hover:text-brand-moss flex items-center gap-1 bg-brand-emerald/10 px-3 py-1.5 rounded-lg border border-brand-emerald/20 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Novo Hábito
+                  </button>
+                </div>
               </div>
               
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6">
                 {(currentArea.habits || []).map(habit => {
-                  const completedDays = habit.history.filter(Boolean).length;
-                  const percentage = Math.round((completedDays / 30) * 100);
+                  const chartData = getHabitChartData(habit.history, habitPeriod);
+                  const completedDays = chartData.filter(d => d.completed === 1).length;
+                  const totalDays = chartData.length;
+                  const percentage = Math.round((completedDays / totalDays) * 100);
+                  
+                  // Últimos 7 dias para a barra de marcação rápida
+                  const last7Days = getHabitChartData(habit.history, 'week');
                   
                   return (
-                    <div key={habit.id} className="bg-white p-5 border-sketch shadow-sketch-black flex flex-col gap-3 group/habit">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span 
-                            className="font-sans font-bold text-gray-800 text-lg cursor-pointer hover:underline"
-                            onClick={() => {
-                              const name = window.prompt("Renomear hábito:", habit.title);
-                              if (name) {
-                                setData(prev => {
-                                  const newData = { ...prev };
-                                  const h = newData[mode].tasks[activeTab].habits.find(x => x.id === habit.id);
-                                  if (h) h.title = name;
-                                  return newData;
-                                });
-                              }
-                            }}
-                            title="Clique para renomear"
-                          >
-                            {habit.title}
+                    <div key={habit.id} className="bg-white p-6 border-sketch shadow-sketch-black flex flex-col gap-4 group/habit">
+                      {/* Cabecalho do Habito */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className="font-sketch font-bold text-gray-800 text-2xl cursor-pointer hover:underline"
+                              onClick={() => {
+                                const name = window.prompt("Renomear hábito:", habit.title);
+                                if (name) {
+                                  setData(prev => {
+                                    const newData = { ...prev };
+                                    const h = newData[mode].tasks[activeTab].habits.find(x => x.id === habit.id);
+                                    if (h) h.title = name;
+                                    return newData;
+                                  });
+                                }
+                              }}
+                              title="Clique para renomear"
+                            >
+                              {habit.title}
+                            </span>
+                            <button 
+                              onClick={() => handleDeleteHabit(habit.id)}
+                              className="text-gray-300 hover:text-red-500 opacity-0 group-hover/habit:opacity-100 transition-opacity p-1"
+                              title="Excluir Hábito"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <span className="text-sm font-sans text-gray-500 font-medium">
+                            {completedDays} de {totalDays} dias concluídos ({percentage}%)
                           </span>
-                          <button 
-                            onClick={() => handleDeleteHabit(habit.id)}
-                            className="text-gray-300 hover:text-red-500 opacity-0 group-hover/habit:opacity-100 transition-opacity p-1"
-                            title="Excluir Hábito"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
-                        <span className="font-sketch font-bold text-brand-emerald text-xl">{percentage}% Completo</span>
+
+                        {/* Marcação Rápida (Sempre mostra os últimos 7 dias) */}
+                        <div className="flex flex-col gap-1 items-end">
+                          <span className="text-xs text-gray-400 font-sans font-bold uppercase tracking-wider">Registrar (Últimos 7 dias)</span>
+                          <div className="flex gap-1.5">
+                            {last7Days.map((day) => (
+                              <button 
+                                key={day.dateStr}
+                                onClick={() => toggleHabitDay(habit.id, day.dateStr)}
+                                className={cn(
+                                  "w-8 h-8 flex items-center justify-center rounded-lg border-2 transition-all group",
+                                  day.completed 
+                                    ? "bg-brand-emerald border-brand-emerald text-white" 
+                                    : "bg-gray-50 border-gray-200 hover:border-brand-emerald hover:bg-brand-emerald/10"
+                                )}
+                                title={day.name}
+                              >
+                                {day.completed ? (
+                                  <CheckCircle2 className="w-4 h-4" />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-gray-400 group-hover:text-brand-emerald">{day.name.charAt(0)}</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                       
-                      {/* 30-day Tracker */}
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-gray-400 font-sans uppercase tracking-wider">Últimos 30 dias</span>
-                        <div className="grid grid-cols-10 sm:grid-cols-15 gap-1.5">
-                          {habit.history.map((isCompleted, i) => (
-                            <button 
-                              key={i} 
-                              onClick={() => toggleHabitDay(habit.id, i)}
-                              className={cn(
-                                "w-full pt-[100%] rounded-sm border cursor-pointer transition-colors relative group",
-                                isCompleted 
-                                  ? "bg-brand-emerald border-brand-moss" 
-                                  : "bg-gray-100 border-gray-200 hover:bg-gray-200"
-                              )}
-                              title={`Dia ${i + 1}: ${isCompleted ? 'Feito' : 'Pendente'}`}
-                            >
-                              {/* Add visual checkmark on hover for empty days to indicate interactivity */}
-                              {!isCompleted && (
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                  <CheckCircle2 className="w-3 h-3 text-gray-400" />
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
+                      {/* Gráfico do Período */}
+                      <div className="h-40 w-full mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              interval={habitPeriod === '3months' ? 14 : habitPeriod === 'month' ? 4 : 0}
+                            />
+                            <Tooltip 
+                              cursor={{ fill: '#F3F4F6' }}
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-white border-2 border-black p-2 shadow-sketch-black-sm">
+                                      <p className="font-sans font-bold text-sm">{format(new Date(data.dateStr + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                                      <p className={cn("text-xs font-bold", data.completed ? "text-brand-emerald" : "text-gray-500")}>
+                                        {data.completed ? 'Concluído' : 'Não concluído'}
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Bar dataKey="completed" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                              {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.completed ? '#10B981' : '#E5E7EB'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
+
                     </div>
                   );
                 })}
                 
                 {!(currentArea.habits?.length > 0) && (
-                  <div className="text-center p-8 bg-white border-2 border-dashed border-gray-200 rounded-xl">
+                  <div className="text-center p-8 bg-white border-2 border-dashed border-gray-300 rounded-xl">
                     <p className="font-sketch text-gray-500 text-lg">Nenhum hábito rastreado nesta área ainda.</p>
                   </div>
                 )}
