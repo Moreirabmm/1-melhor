@@ -32,8 +32,8 @@ function generateMockHabitHistory() {
 const INITIAL_DATA = {
   pessoal: {
     tabs: [
-      { id: 'p1', name: 'Treino' },
-      { id: 'p2', name: 'Saúde' },
+      { id: 'p1', name: 'Treino', color: 'bg-blue-500' },
+      { id: 'p2', name: 'Saúde', color: 'bg-emerald-500' },
     ],
     tasks: {
       'p1': {
@@ -60,7 +60,7 @@ const INITIAL_DATA = {
   },
   profissional: {
     tabs: [
-      { id: 'pr1', name: 'Design & Projetos' },
+      { id: 'pr1', name: 'Design & Projetos', color: 'bg-purple-500' },
     ],
     tasks: {
       'pr1': {
@@ -106,7 +106,12 @@ export default function App() {
   // Editable States
   const [editingTabId, setEditingTabId] = useState(null);
   const [editingTabName, setEditingTabName] = useState("");
+  const [editingTabColor, setEditingTabColor] = useState("bg-emerald-500");
   
+  const PREDEFINED_COLORS = [
+    'bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-red-500', 'bg-amber-500', 'bg-pink-500', 'bg-teal-500'
+  ];
+
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
@@ -146,15 +151,17 @@ export default function App() {
   // --- TAB MANAGEMENT ---
   const handleAddTab = () => {
     const newId = 't_' + Math.random().toString(36).substr(2, 9);
+    const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
     setData(prev => {
       const newData = { ...prev };
-      newData[mode].tabs.push({ id: newId, name: 'Nova Área' });
+      newData[mode].tabs.push({ id: newId, name: 'Nova Área', color: randomColor });
       newData[mode].tasks[newId] = { primary: null, secondary: [], habits: [] };
       return newData;
     });
     setActiveTab(newId);
     setEditingTabId(newId);
     setEditingTabName('Nova Área');
+    setEditingTabColor(randomColor);
   };
 
   const handleDeleteTab = (tabId) => {
@@ -181,7 +188,10 @@ export default function App() {
     setData(prev => {
       const newData = { ...prev };
       const tab = newData[mode].tabs.find(t => t.id === tabId);
-      if (tab) tab.name = editingTabName;
+      if (tab) {
+        tab.name = editingTabName;
+        tab.color = editingTabColor;
+      }
       return newData;
     });
     setEditingTabId(null);
@@ -384,17 +394,38 @@ export default function App() {
             </h2>
             
             {currentTabs.map(tab => (
-              <div key={tab.id} className="relative group flex items-center">
+              <div key={tab.id} className="relative group flex flex-col gap-1">
                 {editingTabId === tab.id ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    value={editingTabName}
-                    onChange={(e) => setEditingTabName(e.target.value)}
-                    onBlur={() => handleRenameTabSubmit(tab.id)}
-                    onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
-                    className="w-full text-left px-4 py-3 font-sans font-medium bg-white border-sketch shadow-sketch-black text-black outline-none"
-                  />
+                  <div className="bg-white border-sketch shadow-sketch-black p-3 flex flex-col gap-2 relative z-20">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingTabName}
+                      onChange={(e) => setEditingTabName(e.target.value)}
+                      onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
+                      className="w-full text-left font-sans font-medium text-black outline-none border-b border-gray-200 pb-1"
+                    />
+                    <div className="flex gap-1.5 justify-between">
+                      {PREDEFINED_COLORS.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setEditingTabColor(color)}
+                          className={cn(
+                            "w-5 h-5 rounded-full border shadow-sm transition-transform hover:scale-110",
+                            color,
+                            editingTabColor === color ? "border-black border-2 scale-110" : "border-transparent"
+                          )}
+                          title="Escolher cor"
+                        />
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => handleRenameTabSubmit(tab.id)}
+                      className="w-full text-xs bg-brand-moss text-white font-semibold py-1 rounded"
+                    >
+                      Salvar
+                    </button>
+                  </div>
                 ) : (
                   <div className="w-full relative flex items-center">
                     <button
@@ -402,15 +433,17 @@ export default function App() {
                       onDoubleClick={() => {
                         setEditingTabId(tab.id);
                         setEditingTabName(tab.name);
+                        setEditingTabColor(tab.color || 'bg-emerald-500');
                       }}
                       className={cn(
-                        "w-full text-left px-4 py-3 font-sans font-medium transition-all select-none pr-10",
+                        "w-full text-left px-4 py-3 font-sans font-medium transition-all select-none pr-10 flex items-center gap-3",
                         activeTab === tab.id 
                           ? "bg-white border-sketch shadow-sketch-black text-black scale-[1.02]" 
                           : "hover:bg-white/50 border-2 border-transparent text-gray-700 hover:border-sketch hover:shadow-none"
                       )}
                     >
-                      {tab.name}
+                      <div className={cn("w-3 h-3 rounded-full shadow-sm shrink-0 border border-black/10", tab.color || 'bg-gray-300')} />
+                      <span className="truncate">{tab.name}</span>
                     </button>
                     <button 
                       onClick={() => handleDeleteTab(tab.id)}
