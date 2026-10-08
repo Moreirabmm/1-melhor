@@ -76,12 +76,29 @@ const INITIAL_DATA = {
 };
 
 export default function App() {
-  const [mode, setMode] = useState('pessoal');
-  const [activeTab, setActiveTab] = useState('p1');
-  const [data, setData] = useState(INITIAL_DATA);
-  const [logs, setLogs] = useState([]);
+  // Initialize state from localStorage or fallback to defaults
+  const [mode, setMode] = useState(() => localStorage.getItem('app_mode') || 'pessoal');
+  
+  const [data, setData] = useState(() => {
+    const savedData = localStorage.getItem('app_data');
+    return savedData ? JSON.parse(savedData) : INITIAL_DATA;
+  });
+  
+  const [logs, setLogs] = useState(() => {
+    const savedLogs = localStorage.getItem('app_logs');
+    return savedLogs ? JSON.parse(savedLogs) : [];
+  });
+  
+  const [calendarUrl, setCalendarUrl] = useState(() => localStorage.getItem('app_calendar') || '');
+  
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('app_active_tab');
+    if (savedTab) return savedTab;
+    const firstTab = data[mode]?.tabs[0];
+    return firstTab ? firstTab.id : 'p1';
+  });
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [calendarUrl, setCalendarUrl] = useState('');
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -92,6 +109,28 @@ export default function App() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    localStorage.setItem('app_data', JSON.stringify(data));
+  }, [data]);
+
+  useEffect(() => {
+    localStorage.setItem('app_logs', JSON.stringify(logs));
+  }, [logs]);
+
+  useEffect(() => {
+    localStorage.setItem('app_mode', mode);
+  }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem('app_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('app_calendar', calendarUrl);
+  }, [calendarUrl]);
+
+  // Sync active tab when mode changes if current active tab is not in the new mode
   useEffect(() => {
     const firstTab = data[mode].tabs[0];
     if (firstTab && !data[mode].tabs.find(t => t.id === activeTab)) {
@@ -694,6 +733,11 @@ export default function App() {
                 <button 
                   onClick={() => {
                     if (window.confirm("Isso apagará todo o histórico e restaurará as tarefas iniciais. Tem certeza?")) {
+                      localStorage.removeItem('app_data');
+                      localStorage.removeItem('app_logs');
+                      localStorage.removeItem('app_mode');
+                      localStorage.removeItem('app_active_tab');
+                      localStorage.removeItem('app_calendar');
                       window.location.reload();
                     }
                   }}
