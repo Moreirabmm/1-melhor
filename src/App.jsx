@@ -271,6 +271,20 @@ export default function App() {
     if (e.key === 'Escape') setEditingTaskId(null);
   };
 
+  const handleDeleteTask = (taskId, isPrimary) => {
+    if (!window.confirm("Deseja realmente excluir esta tarefa?")) return;
+    setData(prev => {
+      const newData = { ...prev };
+      const area = newData[mode].tasks[activeTab];
+      if (isPrimary && area.primary?.id === taskId) {
+        area.primary = null;
+      } else {
+        area.secondary = area.secondary.filter(t => t.id !== taskId);
+      }
+      return newData;
+    });
+  };
+
   // --- HABIT MANAGEMENT ---
   const handleAddHabit = () => {
     const newId = 'h_' + Math.random().toString(36).substr(2, 9);
@@ -306,6 +320,16 @@ export default function App() {
       if (habit) {
         habit.history[dayIndex] = !habit.history[dayIndex];
       }
+      return newData;
+    });
+  };
+
+  const handleDeleteHabit = (habitId) => {
+    if (!window.confirm("Deseja realmente excluir este hábito e seu histórico?")) return;
+    setData(prev => {
+      const newData = { ...prev };
+      const area = newData[mode].tasks[activeTab];
+      area.habits = area.habits.filter(h => h.id !== habitId);
       return newData;
     });
   };
@@ -456,19 +480,28 @@ export default function App() {
                         className="w-full font-sketch font-bold text-3xl bg-gray-50 border-b-2 border-brand-emerald outline-none"
                       />
                     ) : (
-                      <h3 
-                        onDoubleClick={() => {
-                          setEditingTaskId(currentArea.primary.id);
-                          setEditingTaskTitle(currentArea.primary.title);
-                        }}
-                        className={cn(
-                          "font-sketch font-bold text-3xl transition-all cursor-text",
-                          currentArea.primary.completed ? "text-gray-400 line-through" : "text-black"
-                        )}
-                        title="Dê um duplo clique para editar"
-                      >
-                        {currentArea.primary.title}
-                      </h3>
+                      <div className="flex items-center justify-between w-full">
+                        <h3 
+                          onClick={() => {
+                            setEditingTaskId(currentArea.primary.id);
+                            setEditingTaskTitle(currentArea.primary.title);
+                          }}
+                          className={cn(
+                            "font-sketch font-bold text-3xl transition-all cursor-text flex-1",
+                            currentArea.primary.completed ? "text-gray-400 line-through" : "text-black"
+                          )}
+                          title="Clique para editar"
+                        >
+                          {currentArea.primary.title}
+                        </h3>
+                        <button 
+                          onClick={() => handleDeleteTask(currentArea.primary.id, true)}
+                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
+                          title="Excluir Missão"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -525,19 +558,28 @@ export default function App() {
                         className="w-full font-sans font-medium text-lg bg-gray-50 border-b-2 border-gray-400 outline-none"
                       />
                     ) : (
-                      <span 
-                        onDoubleClick={() => {
-                          setEditingTaskId(task.id);
-                          setEditingTaskTitle(task.title);
-                        }}
-                        className={cn(
-                          "font-sans font-medium text-lg flex-1 cursor-text",
-                          task.completed ? "line-through text-gray-400" : "text-gray-800"
-                        )}
-                        title="Dê um duplo clique para editar"
-                      >
-                        {task.title}
-                      </span>
+                      <div className="flex items-center justify-between w-full flex-1 group/task">
+                        <span 
+                          onClick={() => {
+                            setEditingTaskId(task.id);
+                            setEditingTaskTitle(task.title);
+                          }}
+                          className={cn(
+                            "font-sans font-medium text-lg flex-1 cursor-text",
+                            task.completed ? "line-through text-gray-400" : "text-gray-800"
+                          )}
+                          title="Clique para editar"
+                        >
+                          {task.title}
+                        </span>
+                        <button 
+                          onClick={() => handleDeleteTask(task.id, false)}
+                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                          title="Excluir Tarefa"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -573,25 +615,34 @@ export default function App() {
                   const percentage = Math.round((completedDays / 30) * 100);
                   
                   return (
-                    <div key={habit.id} className="bg-white p-5 border-sketch shadow-sketch-black flex flex-col gap-3">
+                    <div key={habit.id} className="bg-white p-5 border-sketch shadow-sketch-black flex flex-col gap-3 group/habit">
                       <div className="flex items-center justify-between">
-                        <span 
-                          className="font-sans font-bold text-gray-800 text-lg cursor-pointer hover:underline"
-                          onClick={() => {
-                            const name = window.prompt("Renomear hábito:", habit.title);
-                            if (name) {
-                              setData(prev => {
-                                const newData = { ...prev };
-                                const h = newData[mode].tasks[activeTab].habits.find(x => x.id === habit.id);
-                                if (h) h.title = name;
-                                return newData;
-                              });
-                            }
-                          }}
-                          title="Clique para renomear"
-                        >
-                          {habit.title}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="font-sans font-bold text-gray-800 text-lg cursor-pointer hover:underline"
+                            onClick={() => {
+                              const name = window.prompt("Renomear hábito:", habit.title);
+                              if (name) {
+                                setData(prev => {
+                                  const newData = { ...prev };
+                                  const h = newData[mode].tasks[activeTab].habits.find(x => x.id === habit.id);
+                                  if (h) h.title = name;
+                                  return newData;
+                                });
+                              }
+                            }}
+                            title="Clique para renomear"
+                          >
+                            {habit.title}
+                          </span>
+                          <button 
+                            onClick={() => handleDeleteHabit(habit.id)}
+                            className="text-gray-300 hover:text-red-500 opacity-0 group-hover/habit:opacity-100 transition-opacity p-1"
+                            title="Excluir Hábito"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                         <span className="font-sketch font-bold text-brand-emerald text-xl">{percentage}% Completo</span>
                       </div>
                       
