@@ -194,38 +194,34 @@ export default function App() {
 
   // --- TASK MANAGEMENT ---
   const handleToggleTask = (taskId, isPrimary) => {
+    // We only toggle the Primary Task (Gargalo). Secondary tasks are locked.
+    if (!isPrimary) return;
+
     setData(prev => {
       const newData = { ...prev };
       const area = newData[mode].tasks[activeTab];
-      if (!area) return prev;
+      if (!area || !area.primary || area.primary.id !== taskId) return prev;
 
-      let taskTitle = "";
+      // Mark as completed
+      const taskTitle = area.primary.title;
+      
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#10B981', '#E6F4EA', '#2E5339']
+      });
 
-      if (isPrimary && area.primary.id === taskId) {
-        area.primary.completed = !area.primary.completed; // allow toggle back
-        if (area.primary.completed) {
-          taskTitle = area.primary.title;
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#10B981', '#E6F4EA', '#2E5339']
-          });
-        }
+      // Add to logs
+      const now = new Date();
+      const timeString = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      setLogs(currentLogs => [{ id: Math.random().toString(), title: taskTitle, time: timeString }, ...currentLogs]);
+
+      // Waterfall: Move first secondary to primary
+      if (area.secondary.length > 0) {
+        area.primary = area.secondary.shift();
       } else {
-        const taskIndex = area.secondary.findIndex(t => t.id === taskId);
-        if (taskIndex !== -1) {
-          area.secondary[taskIndex].completed = !area.secondary[taskIndex].completed;
-          if (area.secondary[taskIndex].completed) {
-            taskTitle = area.secondary[taskIndex].title;
-          }
-        }
-      }
-
-      if (taskTitle) {
-        const now = new Date();
-        const timeString = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-        setLogs([{ id: Math.random().toString(), title: taskTitle, time: timeString }, ...logs]);
+        area.primary = null;
       }
 
       return newData;
@@ -452,19 +448,15 @@ export default function App() {
               {currentArea.primary ? (
                 <div 
                   className={cn(
-                    "p-6 bg-white border-sketch shadow-sketch flex items-center gap-4 transition-all duration-500 group",
-                    currentArea.primary.completed ? "opacity-50 scale-95 shadow-none border-gray-300" : "hover:-translate-y-1 hover:shadow-lg"
+                    "p-6 bg-white border-sketch shadow-sketch flex items-center gap-4 transition-all duration-500 group hover:-translate-y-1 hover:shadow-lg"
                   )}
                 >
                   <button 
                     onClick={() => handleToggleTask(currentArea.primary.id, true)}
                     className="shrink-0"
+                    title="Concluir Gargalo"
                   >
-                    {currentArea.primary.completed ? (
-                      <CheckCircle2 className="w-10 h-10 text-brand-emerald transition-all" />
-                    ) : (
-                      <Circle className="w-10 h-10 text-gray-300 group-hover:text-brand-emerald transition-all" />
-                    )}
+                    <Circle className="w-10 h-10 text-gray-300 group-hover:text-brand-emerald transition-all" />
                   </button>
                   <div className="flex-1">
                     <p className="font-sans font-semibold text-gray-500 text-sm uppercase tracking-wide mb-1">Missão Primária</p>
@@ -486,10 +478,7 @@ export default function App() {
                             setEditingTaskId(currentArea.primary.id);
                             setEditingTaskTitle(currentArea.primary.title);
                           }}
-                          className={cn(
-                            "font-sketch font-bold text-3xl transition-all cursor-text flex-1",
-                            currentArea.primary.completed ? "text-gray-400 line-through" : "text-black"
-                          )}
+                          className="font-sketch font-bold text-3xl transition-all cursor-text flex-1 text-black"
                           title="Clique para editar"
                         >
                           {currentArea.primary.title}
@@ -518,34 +507,19 @@ export default function App() {
             {/* TAREFAS SECUNDÁRIAS */}
             <section className="mt-4">
               <h2 className="font-sketch font-bold text-xl mb-4 text-gray-700 flex items-center gap-2">
-                Tarefas Secundárias
-                {!isPrimaryCompleted && <Lock className="w-5 h-5 text-gray-400" />}
-                {isPrimaryCompleted && <Unlock className="w-5 h-5 text-brand-emerald" />}
+                Fila de Espera (Secundárias)
+                <Lock className="w-5 h-5 text-gray-400" />
               </h2>
               
               <div className="flex flex-col gap-3">
                 {currentArea.secondary.map(task => (
                   <div 
                     key={task.id}
-                    className={cn(
-                      "p-4 bg-white border-sketch-reverse shadow-sketch-black-sm flex items-center gap-3 transition-all duration-300",
-                      !isPrimaryCompleted ? "opacity-50 grayscale cursor-not-allowed" : "hover:shadow-sketch-black",
-                      task.completed && "opacity-40 shadow-none border-gray-200"
-                    )}
+                    className="p-4 bg-white border-sketch-reverse shadow-sketch-black-sm flex items-center gap-3 transition-all duration-300 opacity-60 grayscale cursor-not-allowed"
                   >
-                     <button 
-                      disabled={!isPrimaryCompleted}
-                      onClick={() => handleToggleTask(task.id, false)}
-                      className="shrink-0"
-                    >
-                      {task.completed ? (
-                        <CheckCircle2 className="w-6 h-6 text-brand-emerald" />
-                      ) : !isPrimaryCompleted ? (
+                     <div className="shrink-0" title="Bloqueado até se tornar o Gargalo">
                         <Lock className="w-6 h-6 text-gray-400" />
-                      ) : (
-                        <Circle className="w-6 h-6 text-gray-300 hover:text-brand-emerald transition-colors" />
-                      )}
-                    </button>
+                     </div>
                     
                     {editingTaskId === task.id ? (
                       <input
@@ -564,17 +538,14 @@ export default function App() {
                             setEditingTaskId(task.id);
                             setEditingTaskTitle(task.title);
                           }}
-                          className={cn(
-                            "font-sans font-medium text-lg flex-1 cursor-text",
-                            task.completed ? "line-through text-gray-400" : "text-gray-800"
-                          )}
+                          className="font-sans font-medium text-lg flex-1 cursor-text text-gray-800"
                           title="Clique para editar"
                         >
                           {task.title}
                         </span>
                         <button 
                           onClick={() => handleDeleteTask(task.id, false)}
-                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
                           title="Excluir Tarefa"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -585,11 +556,10 @@ export default function App() {
                 ))}
                 
                 <button 
-                  disabled={!isPrimaryCompleted && currentArea.primary}
                   onClick={() => handleAddTask(false)}
-                  className="mt-2 text-left font-sans font-medium text-gray-500 hover:text-black flex items-center gap-2 w-fit px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-2 text-left font-sans font-medium text-gray-500 hover:text-black flex items-center gap-2 w-fit px-2 py-1 rounded transition-colors"
                 >
-                  <Plus className="w-4 h-4" /> Adicionar Secundária
+                  <Plus className="w-4 h-4" /> Adicionar na Fila
                 </button>
               </div>
             </section>
