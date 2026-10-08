@@ -102,6 +102,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  const [appView, setAppView] = useState(() => localStorage.getItem('app_view') || 'tarefas'); // 'tarefas' | 'agenda'
 
   // Editable States
   const [editingTabId, setEditingTabId] = useState(null);
@@ -135,6 +137,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_calendar', calendarUrl);
   }, [calendarUrl]);
+
+  useEffect(() => {
+    localStorage.setItem('app_view', appView);
+  }, [appView]);
 
   // Sync active tab when mode changes if current active tab is not in the new mode
   useEffect(() => {
@@ -376,6 +382,21 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setAppView(prev => prev === 'tarefas' ? 'agenda' : 'tarefas')}
+            className={cn(
+              "px-4 py-1.5 font-sketch font-bold text-lg rounded-lg border-sketch transition-all flex items-center gap-2",
+              appView === 'agenda' 
+                ? "bg-brand-emerald text-white shadow-none translate-y-0.5" 
+                : "bg-white text-brand-moss shadow-sketch-black hover:-translate-y-0.5"
+            )}
+          >
+            <Calendar className="w-5 h-5" />
+            {appView === 'agenda' ? 'Voltar às Tarefas' : 'Abrir Agenda'}
+          </button>
+          
+          <div className="w-px h-8 bg-gray-300 mx-2"></div>
+
           <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-gray-100 border-sketch rounded-full">
             <Settings className="w-5 h-5" />
           </button>
@@ -383,8 +404,10 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* SIDEBAR */}
-        <aside className={cn(
+        {appView === 'tarefas' ? (
+          <>
+            {/* SIDEBAR */}
+            <aside className={cn(
           "bg-brand-mint border-r-2 border-black flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10",
           sidebarOpen ? "w-64" : "w-0 opacity-0 overflow-hidden"
         )}>
@@ -692,65 +715,6 @@ export default function App() {
 
         {/* RIGHT SIDEBAR */}
         <aside className="w-80 bg-white border-l-2 border-black flex flex-col shrink-0 z-10 overflow-y-auto">
-          
-          <div className="p-6 border-b-2 border-dashed border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-sketch font-bold text-lg text-gray-700 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-500" />
-                Agenda
-              </h3>
-              {calendarUrl && (
-                <button 
-                  onClick={() => setIsEditingCalendar(!isEditingCalendar)}
-                  className="text-xs text-gray-400 hover:text-gray-700"
-                >
-                  Editar
-                </button>
-              )}
-            </div>
-
-            {isEditingCalendar || !calendarUrl ? (
-              <div className="bg-blue-50/50 border-2 border-blue-200 rounded-xl p-4 flex flex-col gap-3">
-                <p className="font-sans text-xs text-gray-600">
-                  Cole o link de incorporação (Embed URL) do seu Google Calendar:
-                </p>
-                <input 
-                  type="text" 
-                  placeholder="https://calendar.google.com/calendar/embed?src=..."
-                  className="w-full text-xs p-2 border border-blue-200 rounded outline-none focus:border-blue-500"
-                  value={calendarUrl}
-                  onChange={e => {
-                    let val = e.target.value;
-                    if (val.includes('<iframe') && val.includes('src="')) {
-                      const match = val.match(/src="([^"]+)"/);
-                      if (match) val = match[1];
-                    }
-                    setCalendarUrl(val);
-                  }}
-                />
-                <button 
-                  onClick={() => setIsEditingCalendar(false)}
-                  disabled={!calendarUrl}
-                  className="w-full bg-blue-500 text-white text-xs font-semibold py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-                >
-                  Salvar
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-xl overflow-hidden border-2 border-blue-200 h-64 bg-gray-50 relative">
-                <iframe 
-                  src={calendarUrl} 
-                  style={{ border: 0 }} 
-                  width="100%" 
-                  height="100%" 
-                  frameBorder="0" 
-                  scrolling="no"
-                  title="Google Calendar"
-                ></iframe>
-              </div>
-            )}
-          </div>
-
           {/* Activity Log */}
           <div className="p-6 flex-1 flex flex-col">
             <h3 className="font-sketch font-bold text-lg mb-4 text-gray-700 flex items-center gap-2">
@@ -771,8 +735,78 @@ export default function App() {
               )}
             </div>
           </div>
-
         </aside>
+          </>
+        ) : (
+          /* AGENDA FULL SCREEN VIEW */
+          <main className="flex-1 bg-gray-50 flex flex-col overflow-hidden relative z-0 p-8">
+            <div className="max-w-6xl mx-auto w-full h-full flex flex-col gap-6">
+              <header className="flex items-center justify-between shrink-0">
+                <h1 className="font-sketch font-bold text-4xl text-brand-moss flex items-center gap-3">
+                  <Calendar className="w-8 h-8 text-blue-500" />
+                  Minha Agenda
+                </h1>
+                
+                {calendarUrl && (
+                  <button 
+                    onClick={() => setIsEditingCalendar(!isEditingCalendar)}
+                    className="text-sm font-semibold text-brand-emerald bg-brand-mint/30 px-4 py-2 rounded border border-brand-emerald/30 hover:bg-brand-mint transition-colors"
+                  >
+                    Trocar Calendário
+                  </button>
+                )}
+              </header>
+
+              {(isEditingCalendar || !calendarUrl) && (
+                <div className="bg-white border-2 border-blue-200 rounded-xl p-6 flex flex-col gap-4 shadow-sm shrink-0">
+                  <p className="font-sans font-medium text-gray-700">
+                    Cole o link de incorporação (Embed URL) do seu Google Calendar abaixo:
+                  </p>
+                  <input 
+                    type="text" 
+                    placeholder="<iframe src='https://calendar.google.com/calendar/embed?src=...' />"
+                    className="w-full p-3 border-2 border-blue-200 rounded outline-none focus:border-blue-500 font-mono text-sm"
+                    value={calendarUrl}
+                    onChange={e => {
+                      let val = e.target.value;
+                      if (val.includes('<iframe') && val.includes('src="')) {
+                        const match = val.match(/src="([^"]+)"/);
+                        if (match) val = match[1];
+                      }
+                      setCalendarUrl(val);
+                    }}
+                  />
+                  <button 
+                    onClick={() => setIsEditingCalendar(false)}
+                    className="w-fit bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded transition-colors"
+                  >
+                    Salvar Agenda
+                  </button>
+                </div>
+              )}
+
+              {calendarUrl && !isEditingCalendar ? (
+                <div className="flex-1 rounded-xl overflow-hidden border-2 border-sketch shadow-sketch-black bg-white relative">
+                  <iframe 
+                    src={calendarUrl} 
+                    style={{ border: 0 }} 
+                    width="100%" 
+                    height="100%" 
+                    frameBorder="0" 
+                    scrolling="yes"
+                    title="Google Calendar"
+                  ></iframe>
+                </div>
+              ) : (
+                !calendarUrl && (
+                  <div className="flex-1 border-4 border-dashed border-gray-200 rounded-xl flex items-center justify-center bg-white/50">
+                    <p className="text-gray-400 font-sketch text-2xl">Insira o link acima para visualizar sua agenda</p>
+                  </div>
+                )
+              )}
+            </div>
+          </main>
+        )}
 
       </div>
 
