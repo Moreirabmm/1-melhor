@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .border-sketch {
+    @apply border-2 border-black rounded-tl-xl rounded-br-lg rounded-tr-md rounded-bl-sm;
+  }
+  .border-sketch-reverse {
+    @apply border-2 border-black rounded-tl-md rounded-br-sm rounded-tr-xl rounded-bl-lg;
+  }
+}
