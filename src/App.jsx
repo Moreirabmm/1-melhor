@@ -459,14 +459,14 @@ export default function App() {
                         setEditingTabColor(tab.color || 'bg-emerald-500');
                       }}
                       className={cn(
-                        "w-full text-left px-4 py-3 font-sans font-medium transition-all select-none pr-10 flex items-center gap-3",
+                        "w-full text-left pl-6 pr-10 py-3 font-sans font-medium transition-all select-none relative overflow-hidden",
                         activeTab === tab.id 
                           ? "bg-white border-sketch shadow-sketch-black text-black scale-[1.02]" 
                           : "hover:bg-white/50 border-2 border-transparent text-gray-700 hover:border-sketch hover:shadow-none"
                       )}
                     >
-                      <div className={cn("w-3 h-3 rounded-full shadow-sm shrink-0 border border-black/10", tab.color || 'bg-gray-300')} />
-                      <span className="truncate">{tab.name}</span>
+                      <div className={cn("absolute left-0 top-0 bottom-0 w-3 border-r border-black/10", tab.color || 'bg-gray-300')} />
+                      <span className="truncate block">{tab.name}</span>
                     </button>
                     <button 
                       onClick={() => handleDeleteTab(tab.id)}
