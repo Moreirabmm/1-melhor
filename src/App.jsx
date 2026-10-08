@@ -12,7 +12,8 @@ import {
   Menu,
   Activity,
   History,
-  Target
+  Target,
+  Trash2
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -154,6 +155,22 @@ export default function App() {
     setActiveTab(newId);
     setEditingTabId(newId);
     setEditingTabName('Nova Área');
+  };
+
+  const handleDeleteTab = (tabId) => {
+    if (!window.confirm("Deseja realmente excluir esta área e todas as suas tarefas?")) return;
+    
+    setData(prev => {
+      const newData = { ...prev };
+      newData[mode].tabs = newData[mode].tabs.filter(t => t.id !== tabId);
+      delete newData[mode].tasks[tabId];
+      return newData;
+    });
+    
+    if (activeTab === tabId) {
+      const remainingTabs = data[mode].tabs.filter(t => t.id !== tabId);
+      setActiveTab(remainingTabs.length > 0 ? remainingTabs[0].id : null);
+    }
   };
 
   const handleRenameTabSubmit = (tabId) => {
@@ -359,21 +376,30 @@ export default function App() {
                     className="w-full text-left px-4 py-3 font-sans font-medium bg-white border-sketch shadow-sketch-black text-black outline-none"
                   />
                 ) : (
-                  <button
-                    onClick={() => setActiveTab(tab.id)}
-                    onDoubleClick={() => {
-                      setEditingTabId(tab.id);
-                      setEditingTabName(tab.name);
-                    }}
-                    className={cn(
-                      "w-full text-left px-4 py-3 font-sans font-medium transition-all select-none",
-                      activeTab === tab.id 
-                        ? "bg-white border-sketch shadow-sketch-black text-black scale-[1.02]" 
-                        : "hover:bg-white/50 border-2 border-transparent text-gray-700 hover:border-sketch hover:shadow-none"
-                    )}
-                  >
-                    {tab.name}
-                  </button>
+                  <div className="w-full relative flex items-center">
+                    <button
+                      onClick={() => setActiveTab(tab.id)}
+                      onDoubleClick={() => {
+                        setEditingTabId(tab.id);
+                        setEditingTabName(tab.name);
+                      }}
+                      className={cn(
+                        "w-full text-left px-4 py-3 font-sans font-medium transition-all select-none pr-10",
+                        activeTab === tab.id 
+                          ? "bg-white border-sketch shadow-sketch-black text-black scale-[1.02]" 
+                          : "hover:bg-white/50 border-2 border-transparent text-gray-700 hover:border-sketch hover:shadow-none"
+                      )}
+                    >
+                      {tab.name}
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteTab(tab.id)}
+                      className="absolute right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 z-10"
+                      title="Excluir Área"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
