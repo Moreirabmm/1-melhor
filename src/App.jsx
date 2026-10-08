@@ -719,7 +719,14 @@ export default function App() {
                   placeholder="https://calendar.google.com/calendar/embed?src=..."
                   className="w-full text-xs p-2 border border-blue-200 rounded outline-none focus:border-blue-500"
                   value={calendarUrl}
-                  onChange={e => setCalendarUrl(e.target.value)}
+                  onChange={e => {
+                    let val = e.target.value;
+                    if (val.includes('<iframe') && val.includes('src="')) {
+                      const match = val.match(/src="([^"]+)"/);
+                      if (match) val = match[1];
+                    }
+                    setCalendarUrl(val);
+                  }}
                 />
                 <button 
                   onClick={() => setIsEditingCalendar(false)}
